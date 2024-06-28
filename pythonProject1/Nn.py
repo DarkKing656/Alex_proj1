@@ -1,0 +1,1117 @@
+import os
+from openpyxl import Workbook, load_workbook
+from datetime import datetime
+import shutil   #из одного путь в другой
+import pandas as pd
+import win32com.client as win32
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtGui import QFont, QColor, QPixmap
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QScrollArea, QGridLayout, QTableWidget
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHeaderView
+import sys
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QApplication, QMainWindow
+from src.utils import log_print  # Из файла ютилс берется функция лог принт
+from openpyxl.styles import Alignment, Font, Border, Side
+
+with open('addition/путь.txt', 'r', encoding="utf-8") as file:
+    put = file.readline().rstrip()
+def download_globalTolocal(filename: str):
+    # Путь к первому документу
+    src_file = f'{put}/{filename}'
+    # Путь ко второму документу
+    dst_file = f"addition/конкурс.xlsx"
+
+    shutil.copy(src_file, dst_file)
+
+def download_localToglobal(filename: str):
+    # Путь к первому документу
+    dst_file = f'{put}/{filename}'
+    # Путь ко второму документу
+    src_file = f"addition/конкурс.xlsx"
+
+    shutil.copy(src_file, dst_file)
+
+def get_contest_dates():
+    try:
+        target_folder = f'{put}/Конкурс'
+    except:
+        target_folder = f'{put}'
+    dates = os.listdir(target_folder)
+    df = pd.Series(pd.to_datetime(dates, format='%d.%m.%Y'))
+    df.sort_values(inplace=True)
+    df = df.dt.strftime('%d.%m.%Y')
+    dates = df.to_list()
+    return dates
+
+
+
+
+class LoginApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        global HR
+        self.resize(1920, 1080)
+        self.setWindowTitle('Проверка логина и пароля')
+        #кнопка для метода cheklogpas
+        self.pushButton = QPushButton("Войти", self)
+        self.pushButton.setGeometry(QtCore.QRect(843, 737, 253, 58))
+        self.pushButton.setToolTip("<h3>Пройти верификацию</h3>")#задает текст высплывающей подсказки
+        self.pushButton.clicked.connect(self.cheklogpas)#относит к дэфу
+        self.pushButton.setStyleSheet("background-color: rgb(33, 53, 89);\n"
+                                      "color: white;\n"
+                                      "font: 16pt Myriad pro;\n"
+                                      "font-weight: bold;\n"
+                                      "\n" "border: 0px solid rgb(6, 73, 129);\n" "border-radius: 15px;")
+
+        self.label2 = QLabel("Введите логин", self)
+        self.label2.setGeometry(QtCore.QRect(745, 438, 450, 50))
+        self.label2.setAcceptDrops(True)    #эта строчка используется для доступа к медиафайлам
+        self.label2.setAutoFillBackground(False)    #Это свойство определяет, заполняется ли фон виджета автоматически
+
+
+        self.label2.setScaledContents(True) #setScaledContents устанавливает масштабируемые содержания
+        # self.label2.setAlignment(QtCore.Qt.AlignCenter)
+        self.label2.setWordWrap(True)#Это свойство поддерживает политику переноса слов в ярлыке(я хз как это работает)
+        self.label2.setStyleSheet("\n" "color: rgb(33, 53, 89);\n"
+                                  "\n" "background-color: rgb(184, 184, 184,0);\n" "\n" "font: 16pt \"Myriad pro\";\n" "\n"
+                                  "font-weight: bold")
+
+        self.label3 = QLabel("Введите пароль", self)
+        self.label3.setGeometry(QtCore.QRect(745, 578, 450, 50))       #Класс QRect определяет прямоугольник на плоскости с использованием целочисленной точности
+        self.label3.setAcceptDrops(True)
+        self.label3.setAutoFillBackground(False)
+        self.label3.setScaledContents(True)
+        # self.label3.setAlignment(QtCore.Qt.AlignCenter)
+        self.label3.setWordWrap(True)
+        self.label3.setStyleSheet("\n" "color: rgb(33, 53, 89);\n"
+                                  "\n" "background-color: rgb(255, 255, 255,0);\n" "\n" "font: 16pt \"Myriad pro\";\n" "\n"
+                                  "font-weight: bold")
+        self.login = '0'
+        self.edit_login = QLineEdit(self)
+        self.edit_login.setText('')#--------------------------------------------------------------------------------------
+        self.edit_login.setGeometry(QtCore.QRect(745, 485, 442, 55))
+        self.edit_login.setObjectName("<h3>Start the Session</h3>")
+        self.edit_login.setAlignment(QtCore.Qt.AlignCenter)# Qt::Alignment Это свойство определяет выравнивание содержимого метки
+
+
+        self.edit_login.setStyleSheet(
+            "\n" "background-color: rgb(239, 239, 238);\n" "\n" "font: 18pt \"Times New Roman\";"
+            "\n" "border: 0px solid rgb(217, 217, 217);\n" "border-radius: 8px;")
+        #пароль
+        self.text2 = '0'
+        self.edit_password = QLineEdit(self)
+        self.edit_password.setText('')#--------------------------------------------------------------------------------------
+        self.edit_password.setGeometry(QtCore.QRect(745, 625, 442, 55))
+        self.edit_password.setObjectName("<h3>Start the Session</h3>")
+        self.edit_password.setAlignment(QtCore.Qt.AlignCenter)  #Qt::AlignCenter одновременно вызывает и горизонтальный и вертикальный флаг
+        self.edit_password.setStyleSheet(
+            "\n" "background-color: rgb(239, 239, 238);\n" "\n" "font: 18pt \"Times New Roman\";"
+            "\n" "border: 0px solid rgb(217, 217, 217);\n" "border-radius: 8px;")
+
+        self.show()
+
+    def cheklogpas(self):
+        login = self.edit_login.text()
+        password = self.edit_password.text()
+        excel_file = file2
+
+        try:
+            df = pd.read_excel(excel_file, sheet_name='Конкурс (Комиссия)')
+            match = df[(df.iloc[:, 4] == login) & (df.iloc[:, 5] == password)]
+            if not match.empty:
+                QMessageBox.information(self, 'Уведомление', 'Вход выполнен успешно!')
+                self.FIO = match["ФИО"].iloc[0]    #Например, `df.iloc[0]` возвращает строку с отсчитываемым от нуля индексом 0, то есть первую строку.
+                #print(FIO)
+                self.otkrit(self.FIO)
+            else:
+                QMessageBox.warning(self, 'Ошибка', 'Неверный логин или пароль.')
+
+        except Exception as e:
+            QMessageBox.critical(self, 'Ошибка', f'Ошибка чтения Excel-файла: {str(e)}')
+
+    def otkrit(self, FIO):#yt
+        global proverka
+        proverka = 0
+        self.w = Main_window(FIO)
+        app.setStyleSheet(stylesheet976)
+        self.w.showMaximized()
+        self.w.show()
+        self.hide()
+
+    # def start_work_order(self):
+    #     global HR
+    #     FIO = self.FIO
+    #     self.HR_info = self.inf.get_HR_info_values()
+    #     HR = self.HR_info
+    #
+    #     self.inf.close()
+    #     self.otkrit(self.FIO)
+
+
+global HR, file2
+class Information_HR_sheet(QWidget):
+    """
+        window with information about HR where you can enter name and post by
+        HR, Tutor, Law, Admin worker.
+        It used in future in documents.py to create order
+
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle('Конкурс')
+        # self.qr = self.frameGeometry()
+        # self.cp = QApplication.desktop().availableGeometry().center()
+        # self.qr.moveCenter(self.cp)
+        # self.move(self.qr.topLeft())
+        self.setGeometry(700, 500, 500, 50)
+        self.grid_layout = QGridLayout()
+        self.setLayout(self.grid_layout)
+        self.edited_lines_list = []
+        self.edited_combo_box = []
+        self.setStyleSheet("""            
+                    QGridLayout{
+
+                    }
+
+                    QLabel{
+                        margin-left:20px;
+                        color: #383838;
+                        font: 16pt Myriad pro;
+
+                    }
+
+                    QLabel#Title_label{
+                        font-weight: bold;
+                        color: black;
+                        margin-bottom:10px;
+
+                    }
+                    QLineEdit{
+                        margin-right:20px;
+                        background-color: white;
+                    }
+
+                    QComboBox{
+                    background-color: #D3D3D3;
+                    }
+
+                    QPushButton{
+                        height: 30px;
+                        margin-top: 50px;
+                        background-color: rgb(245, 193, 117);
+                        font: 16pt Myriad pro;
+                        border: 2px solid rgb(96, 124, 173);
+                        border-radius: 10px;
+                    }
+
+                    QTableWidget{
+                        background
+                    }
+
+
+                    """)
+        self.create_table()
+
+        self.accept_button = QPushButton(self)
+        self.accept_button.setText('Подтвердить')
+        self.accept_button.clicked.connect(self.get_HR_info_values)
+
+        self.grid_layout.addWidget(self.accept_button, 2, 0, 1, 4)
+
+    # def create_button(self):
+    #     """
+    #     Function that create accept button on information about HR
+    #     :param parent: Папочка
+    #     :return:
+    #     """
+    #     self.accept_button = QPushButton(self)
+    #     self.accept_button.setText('Подтвердить')
+    #     self.accept_button.clicked.connect(self.get_HR_info_values)
+    #
+    #     self.grid_layout.addWidget(self.accept_button, 2, 0, 1, 4)
+
+    def create_table(self):
+        """
+        Fill grid_table on layout by labels and editlabels
+        Cycle that create blocks like:
+        Title
+        FIO ______ post ________
+        """
+        path = "addition/конкурс"
+        dates = get_contest_dates()
+        today = datetime.now()
+        date_format = "%d.%m.%Y"
+        tmp = []
+        for d in dates:
+            file_date = datetime.strptime(d, date_format)
+            delta = today - file_date
+            if abs(delta.days) <= 60:
+                tmp.append(d)
+        dates = tmp
+
+        titles = ['Выберите дату проведения конкурса']
+        self.lines = []
+        post = QComboBox()
+        post.addItems(dates)
+
+        name_combobox = QComboBox()
+        name_combobox.setEditable(True)
+        name_combobox.setInsertPolicy(QComboBox().InsertAfterCurrent)
+        post.setStyleSheet("font: 12pt \"Arial\";\n")
+        self.lines.append([name_combobox, post])  # Добавляем заполняемые поля
+
+        # добавление виджетов на сетку
+        title_label = QLabel(titles[0], self)
+        title_label.setObjectName('Title_label')
+        title_label.setAlignment(Qt.AlignCenter)
+
+        self.grid_layout.addWidget(title_label, 0, 0, 1, 4,
+                                   alignment=Qt.AlignmentFlag.AlignBottom)
+
+        self.grid_layout.addWidget(QLabel('Дата', self), 1, 1)
+        self.grid_layout.addWidget(self.lines[0][1], 1, 2)
+
+    def otkrit(self):
+        self.w = LoginApp()
+        app.setStyleSheet(stylesheet976)
+        self.w.showMaximized()
+        self.w.show()
+        self.hide()
+
+    def get_HR_info_values(self):
+        global HR, file2
+        HR_info_values = {'Время конкурса': '', 'Время': '', }
+        list = []
+        k_lines, k_boxes = 0, 0
+        for key in HR_info_values:
+            HR_info_values[key] = self.lines[0][1].currentText()
+        for i in HR_info_values[key]:
+            list.append(i)
+        number = str(''.join(map(str, list)))
+        HR = number
+        try:
+            workbook = load_workbook('addition/конкурс.xlsx')
+            workbook.close()
+            file2 = 'addition/конкурс.xlsx'
+        except:
+            filename = f'Конкурс/{HR}/конкурс.xlsx'
+            download_globalTolocal(filename)
+            file2 = 'addition/конкурс.xlsx'
+        self.otkrit()
+
+
+
+
+
+# app = QApplication(sys.argv)
+# inf = Information_HR_sheet()
+# inf.show()
+# sys.exit(app.exec_())
+
+
+class NonEditableDelegate(QStyledItemDelegate):
+    """Делегат, делающий ячейки нередактируемыми."""
+    def createEditor(self, parent, option, index):
+        return None  # Не создаем редактор, тем самым делаем ячейку нередактируемой
+
+
+class ExcelTableWidget1(QWidget):#
+    def __init__(self, parent, i):
+        super().__init__(parent)
+        self.layout1 = QVBoxLayout(self)
+        self.table_widget1 = QTableWidget(self)
+        self.table_widget1.setEditTriggers(QTableWidget.NoEditTriggers) #Это свойство определяет, какие действия будут инициировать редактирование элемента
+        #QTableWidget.NoEditTriggers Редактирование невозможно.
+        self.table_widget1.setStyleSheet("background-image: url(картинки/2.png)")
+        font = QFont("Times", 10)#для изменения параметров шрифта
+        self.table_widget1.setFont(font)#задаем шрифт
+        self.layout1.addWidget(self.table_widget1)
+        self.setLayout(self.layout1)
+
+        self.dialogs = list()  # Список под окна класса WindowGRBS
+        self.dialogs_last = list()  # Список под окна для открытие выбора из логов
+        self.table_view = QTableView()
+        self.zapoln_chelik_komic()
+        self.show()
+
+    def zapoln_chelik_komic(self):
+        df = pd.read_excel(file2, sheet_name='Конкурс (Комиссия)')
+        # Установка количества строк и столбцов в QTableWidget
+        df = df[['Статус участника конкурсной комиссии', 'ФИО', 'Должность', 'Подразделение']]
+        #устанавливаем количество строк и столбцов
+        self.table_widget1.setRowCount(df.shape[0])
+        self.table_widget1.setColumnCount(df.shape[1])
+        self.table_widget1.setColumnCount(4)  #устанавливает 4 столбца
+
+        # Заполнение QTableWidget данными из DataFrame
+        for row in range(df.shape[0]):
+            for col in range(df.shape[1]):
+                xxx = str(df.iat[row, col])     #.iat - Доступ к одному значению для пары строк
+                item = QTableWidgetItem(xxx)
+                self.table_widget1.setItem(row, col, item)
+
+        self.table_widget1.resizeColumnsToContents()    #для автоматического выравнивания
+        self.table_widget1.setHorizontalHeaderLabels(
+            ["Статус участника конкурсной комиссии", "ФИО", "Должность", "Отдел"])
+        self.table_widget1.horizontalHeader().setStyleSheet("font-size: 15px; font-weight: bold;")
+
+        self.table_widget1.setColumnWidth(0, 350)
+        self.table_widget1.setColumnWidth(1, 300)
+        self.table_widget1.setColumnWidth(2, 300)
+        self.table_widget1.setColumnWidth(3, 750)
+        excel = win32.Dispatch("Excel.Application")
+        excel.Quit()
+        log_print('Таблица конкурса (Комисия) успешно заполнена')
+
+
+class Main_window(QMainWindow): #окно после регистрации
+    def __init__(self, FIO):
+        super().__init__()
+        self.title = 'Члены конкурса'
+        self.FIO = FIO
+        self.initUI()
+
+        log_print('Инициализировано главное окно')
+
+
+    def initUI(self):
+        self.setWindowTitle(self.title)
+
+        self.table_widget = QTabWidget(self)
+        self.setCentralWidget(self.table_widget)
+
+        self.tab_komic = ExcelTableWidget1(self, 3)
+        self.tab_rabot = ExcelTableWidget2(self, 3, self.FIO)
+
+        self.table_widget.addTab(self.tab_rabot, "Члены конкурса (работники)")
+        self.table_widget.addTab(self.tab_komic, "Члены конкурса (комиссия)")
+
+
+        self.table_widget.setStyleSheet('''
+            QTabWidget::pane {
+                border-top: 3px solid #C2C7CB;
+            }
+            QTabWidget::tab-bar {
+                left: 15px;
+            }
+            QTabBar::tab {
+                background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                            stop: 0 #E1E1E1, stop: 0.4 #DDDDDD,
+                                            stop: 0.5 #D8D8D8, stop: 1.0 #D3D3D3);
+                border: 2px solid #C4C4C3;
+                border-bottom-color: #C2C7CB;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+                min-width: 8ex;
+                padding: 2px;
+            }
+            QTabBar::tab:selected, QTabBar::tab:hover {
+                background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                            stop: 0 #fafafa, stop: 0.4 #f4f4f4,
+                                            stop: 0.5 #e7e7e7, stop: 1.0 #fafafa);
+            }
+            QTabBar::tab:selected {
+                border-color: #9B9B9B;
+                border-bottom-color: #C2C7CB;
+            }
+            QTabBar::tab:!selected {
+                margin-top: 2px;
+            }
+
+
+
+        ''')
+        self.setStyleSheet('''
+        QPushButton{
+                height: 30px;
+                width: 500px;
+                margin-top: 10px;
+                background-color: rgb(245, 193, 117);
+                font: 14pt Times New Roman;
+                border: 2px solid rgb(96, 124, 173);
+                border-radius: 10px;
+                margin: 0;
+            }
+
+        QPushButton:hover {
+            background-color: rgb(237, 182, 18);
+        }      
+
+        QPushButton#blue_button {
+
+            background-color: rgb(182, 202, 237);
+
+        }
+        QPushButton#blue_button:hover {
+
+            background-color: rgb(149, 178, 228);
+
+        }
+
+        QHeaderView::section {
+            background-color: rgb(240, 240, 240);
+        }
+        '''
+                           )
+        self.showMaximized()
+
+
+
+
+class ExcelTableWidget2(QWidget):
+    # table_widget2: QTableWidget
+
+    def __init__(self, parent, i, FIO):
+        super().__init__(parent)
+        global HR
+        self.prove = 0
+        self.df = pd.read_excel(file2, sheet_name='Конкурс (Работники)')
+        self.layout2 = QVBoxLayout()
+        self.layout3 = QHBoxLayout()
+        self.layout_h2 = QHBoxLayout()
+        self.table_widget2 = QTableWidget(self)
+        self.table_widget2.setStyleSheet("background-image: url(картинки/2.png)")
+        font = QFont("Times", 10)
+        self.table_widget2.setFont(font)
+
+        self.search_label = QLabel('Поиск:')
+        self.search_label.setStyleSheet("\n" "color: rgb(33, 53, 89);\n"
+                                  "\n" "background-color: rgb(255, 255, 255,0);\n" "\n" "font: 16pt \"Open Sans Light\";\n" "\n"
+                                  "font-weight: bold")
+
+        self.layout3.addWidget(self.search_label)
+        self.search_edit = QLineEdit()
+        self.layout3.addWidget(self.search_edit)
+        self.search_edit.textChanged.connect(self.search_table)
+
+
+        self.FIO = FIO
+        self.calendarr = QCalendarWidget()
+        self.calendarr.setGridVisible(True)
+        self.calendarr.setStyleSheet("QCalendarWidget QToolButton"
+                                     "{"
+                                     "background-color : lightgrey;"
+                                     "color : black"
+                                     "}")
+        #задаем дату
+        #unique_dates = self.df['Дата комиссии'].dt.strftime('%d.%m.%Y').unique()
+        unique_dates = set(self.df['Дата комиссии'].to_list())
+        # self.df['Дата комиссии'] = self.df['Дата комиссии'].dt.strftime('%d.%m.%Y')
+        self.combocalendar = QComboBox()
+        # Добавление уникальных дат в комбо-бокс
+        self.combocalendar.addItems(['Выбор даты'] + list(unique_dates))
+        self.combocalendar.setStyleSheet("font: 14pt \"Arial\";\n")
+        self.combocalendar.setFixedWidth(250)
+        self.combocalendar.setFixedHeight(40)
+        self.combocalendar.currentIndexChanged.connect(self.calchanged)
+        self.layout3.addWidget(self.combocalendar)
+        # # self.combocalendar = QComboBox()
+        # # self.combocalendar.addItems(['Выбор даты'])
+        # # self.combocalendar.setStyleSheet("font: 14pt \"Arial\";\n" "\n")
+        # # self.combocalendar.setFixedWidth(250)    #для установки размеров виджета
+        # # self.combocalendar.setFixedHeight(40)
+        # # self.layout3.addWidget(self.combocalendar)
+        #кнопка
+        self.btn = QPushButton(self)
+        self.btn.clicked.connect(self.save_to_excel)
+        # self.btn.clicked.connect(self.save_to_excel)
+        self.btn.setText('Сохранить оценку')
+        self.layout_h2.addWidget(self.btn)
+        #кнопка
+        self.baton2 = QPushButton(self)
+        self.baton2.setText('Формирование бланков')
+        self.baton2.clicked.connect(self.create_blank_files)
+        self.layout_h2.addWidget(self.baton2)
+        #надпись
+        self.layout2.addLayout(self.layout3)
+        self.layout2.addWidget(self.table_widget2)
+        self.layout2.addLayout(self.layout_h2)
+        self.setLayout(self.layout2)
+
+        self.dialogs = list()  # Список под окна класса WindowGRBS
+        self.dialogs_last = list()  # Список под окна для открытие выбора из логов
+        self.table_view = QTableView()
+        self.zapoln_chelick_rabot()
+        self.show()
+
+
+
+        self.column_names = [self.FIO + " Балл", self.FIO + " ЗаПротив", self.FIO + " Мотивировка"]
+#C:\Users\anikitin\PycharmProjects\pythonProject1\addition
+
+
+
+    def zapoln_chelick_rabot(self):
+
+        # Установка количества строк и столбцов в QTableWidget
+        self.df = self.df[['Новый отдел', 'Претендующая Должность', 'ФИО', 'Количество вопросов', 'Количество ответов', \
+                           'Процент правильных ответов', "Баллы за тест", self.FIO + " Балл", self.FIO + " ЗаПротив", \
+                           self.FIO + " Мотивировка"]]
+        priority = {
+            'Начальник отдела': 1,
+            'Заместитель начальника отдела': 2,
+            'Главный казначей': 3,
+            'Консультант': 4,
+            'Старший казначей': 5,
+            'Казначей': 6,
+            'Главный специалист-эксперт': 7,
+            'Ведущий специалист-эксперт': 8,
+            'Специалист 1-ого разряда': 9,
+        }
+        # self.df['Приоритет'] = self.df['Претендующая Должность'].map(priority)
+        # self.df = self.df.sort_values(by=['Новый отдел', 'Приоритет', 'ФИО'])
+        # self.df['Дата комиссии'] = self.df['Дата комиссии'].dt.strftime('%d.%m.%Y')
+        self.table_widget2.setRowCount(self.df.shape[0])
+        self.table_widget2.setColumnCount(self.df.shape[1])
+        self.table_widget2.setColumnCount(10)
+        i = 0
+        k = 0
+
+        #фАМИЛИЯ И ИНИЦИАЛЫ
+        R = self.FIO.split()
+        M = ''.join(r[0] + '.' for r in R[1:])
+        self.FIOS = R[0] + ' ' + M
+        # Изменил на Филипович Е.Л.
+
+        balls = []
+        zp = []
+        # Заполнение QTableWidget данными из DataFrame
+        for row in range(self.df.shape[0]):
+            for col in range(self.df.shape[1]):
+                if col == 5 or col == 4 or col == 6:
+                    xxxi = str(self.df.iat[row, col])
+                    if xxxi == 'nan' or xxx == ' ':
+                        xxxi = ' '  # Замена NaN на пустую строку
+                    elif xxxi == 'Неявка':
+                        pass
+                    else:
+                        xxxi = int(float(xxxi) + (0.5 if float(xxxi) > 0 else -0.5))
+                    item = QTableWidgetItem(str(xxxi))  # Преобразование в строку
+                    item.setData(Qt.EditRole, xxxi)
+                    item.setTextAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter)
+                    self.table_widget2.setItem(row, col, item)
+                elif col == 7:  # берем 7 колонку
+                    xxx = str(self.df.iat[row, col])
+                    if xxx == 'nan' or xxx == ' ':
+                        xxx = 'Выберите вариант'  # Замена NaN на пустую строку
+                    else:
+                        xxx = int(float(xxx))
+                    item = QTableWidgetItem(str(xxx))
+                    balls.append(str(xxx))
+                    self.table_widget2.setItem(row, col, item)  # Установка элемента в таблицу
+                elif col == 8:
+                    xxx = str(self.df.iat[row, col])
+                    if xxx == 'nan' or xxx == ' ':
+                        xxx = 'Выберите вариант'  # Замена NaN на пустую строку
+                    item = QTableWidgetItem(xxx)
+                    zp.append(xxx)
+                    self.table_widget2.setItem(row, col, item)  # Установка элемента в таблицу
+                elif col == 9:
+                    xxx = str(self.df.iat[row, col])
+                    if xxx == 'nan' or xxx == ' ':
+                        xxx = ''  # Замена NaN на пустую строку
+                    item = QTableWidgetItem(xxx)
+                    self.table_widget2.setItem(row, col, item)
+                else:
+                    xxx = str(self.df.iat[row, col])
+                    item = QTableWidgetItem(xxx)
+                    if col == 3:
+                        item.setTextAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter)
+                        self.table_widget2.setItem(row, col, item) # Установка элемента в таблицуt(Qt.AlignCenter)
+                    else:
+                        self.table_widget2.setItem(row, col, item)  # Установка элемента в таблицуt(Qt.AlignCenter)
+
+        self.table_widget2.resizeColumnsToContents()    #Изменяет размер всех столбцов на основе подсказок о размере делегата, используемого для отображения каждого элемента в столбцах.
+        self.table_widget2.setHorizontalHeaderLabels(
+            ["Подразделение", "Должность", "ФИО", "Кол-во вопросов", "Кол-во ответов", "% правильных ответов", "Баллы за тест",  \
+             self.FIOS + " Балл", self.FIOS + " ЗаПротив", self.FIOS + " Мотивировка"])
+        # можно пройтись по каждой ячеке и добавить setWordWrap
+        self.table_widget2.horizontalHeader().setStyleSheet("font-size: 15px; font-weight: bold;")
+        for row in range(self.table_widget2.rowCount()):
+            for col in range(self.table_widget2.columnCount()):
+                if col < 6:
+                    self.nonEditableDelegate = NonEditableDelegate(self)
+                    self.table_widget2.setItemDelegateForColumn(col, self.nonEditableDelegate)
+
+        for j in range(self.table_widget2.rowCount()):
+            attr1 = ['Выберите вариант', '0', '7', '8', '9', '10']
+            comboBoxball = QComboBox()
+            comboBoxball.setStyleSheet("font: 12pt \"Arial\";\n")
+            comboBoxball.addItems(attr1)
+            comboBoxball.setCurrentText(balls[i])
+            self.table_widget2.setCellWidget(i, 7, comboBoxball)
+            i += 1
+
+        for j in range(self.table_widget2.rowCount()):
+            attr2 = ['Выберите вариант', 'За', 'Против', 'Воздержусь']
+            comboBoxZa = QComboBox()
+            comboBoxZa.setStyleSheet("font: 12pt \"Arial\";\n")
+            comboBoxZa.addItems(attr2)
+            comboBoxZa.setCurrentText(zp[k])
+            self.table_widget2.setCellWidget(k, 8, comboBoxZa)
+            k += 1
+
+
+        self.table_widget2.setWordWrap(True)#настройка переноса слов
+        self.table_widget2.resizeColumnsToContents()
+        # self.table_widget2.resizeRowsToContents()
+        self.table_widget2.setColumnWidth(0, 220) #setcolumn Задает заданную ширину column равной width.
+        # self.table_widget2.setRowsHeight(0, 70)
+        self.table_widget2.setColumnWidth(1, 200)
+        self.table_widget2.setColumnWidth(2, 250)
+        self.table_widget2.setColumnWidth(3, 140)
+        self.table_widget2.setColumnWidth(4, 140)
+        self.table_widget2.setColumnWidth(5, 180)
+        self.table_widget2.setColumnWidth(6, 120)
+        self.table_widget2.setColumnWidth(7, 180)
+        self.table_widget2.setColumnWidth(8, 220)
+        self.table_widget2.setColumnWidth(9, 220)
+        self.table_widget2.setColumnWidth(10, 100)
+        self.table_widget2.resizeRowsToContents()
+
+
+        self.table_widget2.cellChanged.connect(self.some_changed)
+        excel = win32.Dispatch("Excel.Application")
+        excel.Quit()
+        log_print('Таблица конкурса (Комисия) успешно заполнена')
+
+    def format_name(self, full_name):
+        names = full_name.split()
+        surname = names[0]
+        names = names[1:3]
+        initials = [name[0] + '.' for name in names]
+        formatted_name = surname + ' ' + ' '.join(initials)
+
+        return formatted_name
+
+    def smena(self, init):
+        names = init.split()
+        temp = names[0]
+        names = names[1:3]
+        names.append(temp)
+        formatted_name_2 = ' '.join(names)
+
+        return
+
+    def some_changed(self):
+        if self.table_widget2.blockSignals(True):
+            pass
+        else:
+            row = self.table_widget2.currentRow()
+            col = self.table_widget2.currentColumn()
+            self.df.iloc[row, col] = self.table_widget2.currentItem().text()
+
+    def save_to_excel(self):
+        try:
+            #Получаем имя пользователя
+            username = self.FIO  #Предполагается, что self.FIO содержит имя пользователя
+
+            #Открываем книгу Excel с помощью openpyxl
+            wb = load_workbook(file2)
+            sheet = wb['Конкурс (Работники)']
+
+            #здесь просто находим необходимые индексы
+            user_column_index = None
+            for cell in sheet[1]:  #Перебираем ячейки в первой строке (заголовки столбцов)
+                if cell.value == username + " Балл":  #Если значение ячейки совпадает с именем пользователя и " Балл"
+                    user_column_index = cell.column  #Запоминаем индекс столбца
+                    break
+
+            #просто перебор df
+            values = []
+            for i in range(self.table_widget2.rowCount()):
+                comboBox = self.table_widget2.cellWidget(i, 7)
+                if comboBox is not None:  # Проверяем, действительно ли это QComboBox
+                    if comboBox.currentText() == "Выберите вариант":
+                        values.append(' ')  # Добавляем выбранное значение в список
+                    else:
+                        values.append(comboBox.currentText())  # Добавляем выбранное значение в список
+            for idx, value in enumerate(values, start=1):  #Перебираем значения с индексом
+                sheet.cell(row=idx + 1, column=user_column_index).value = value  #Записываем значение в соответствующую ячейку
+
+            user_column_index = None
+            for cell in sheet[1]:
+                if cell.value == username + " ЗаПротив":
+                    user_column_index = cell.column
+                    break
+
+            values = []
+            for i in range(self.table_widget2.rowCount()):
+                comboBox = self.table_widget2.cellWidget(i, 8)
+                if comboBox is not None:  # Проверяем, действительно ли это QComboBox
+                    if comboBox.currentText() == "Выберите вариант":
+                        values.append(' ')  # Добавляем выбранное значение в список
+                    else:
+                        values.append(comboBox.currentText())  # Добавляем выбранное значение в список
+            for idx, value in enumerate(values, start=1):
+                sheet.cell(row=idx + 1, column=user_column_index).value = value
+
+            user_column_index = None
+            for cell in sheet[1]:
+                if cell.value == username + " Мотивировка":
+                    user_column_index = cell.column
+                    break
+
+            values = []
+            for i in range(self.table_widget2.rowCount()):
+                text = self.table_widget2.item(i, 9)
+                if text is not None:  # Проверяем, действительно ли это QComboBox
+                    values.append(text.text())  # Добавляем выбранное значение в список
+            for idx, value in enumerate(values, start=1):
+                sheet.cell(row=idx + 1, column=user_column_index).value = value
+            # Получение ФИО логина пользователя (замените на ваш метод получения)
+            user_name = self.FIO
+
+            # Создание имени файла
+            file_name1 = f"addition/{user_name}.xlsx"
+            file_name2 = file2
+            file_name3 = f'{put}/Конкурс/{HR}/Комиссия/{user_name}.xlsx'
+            download_localToglobal(f'Конкурс/{HR}/Комиссия/{user_name}')
+
+            # Сохранение DataFrame в файл Excel
+            wb.save(file_name2)
+            wb.save(file_name1)
+            wb.save(file_name3)
+
+            #wb.save(file_name3)
+            wb.close()
+
+
+
+            #Выводим сообщение об успешном сохранении
+            QMessageBox.information(self, 'Уведомление', 'Сохранение успешно выполнено!')
+        except Exception as e:
+            #В случае ошибки выводим сообщение об ошибке
+            QMessageBox.critical(self, 'Ошибка', 'Не удалось выполнить сохранение: {}'.format(str(e)))
+
+    def create_blank_files(self):#-----------------------------------------------------------------------------------------------------------------------------------------
+        dep = []
+        counter_row = []
+        def generate_table_from_excel(ws, blank):#кароч надо сделать так чтобы бланки формировались исходя
+            #из группы доолжностей и категории
+            #if группа должностей = что-то и категории что-то, тогда создаем новую таблицу
+            df = pd.read_excel(file2)
+
+            # Список для отслеживания уже использованных отделов
+            departments = []
+
+            # Переменная для отслеживания текущего индекса строки в файле Excel
+            current_row = 10
+
+            # Заголовки таблицы
+            headers = ['Фамилия, имя, отчество кандидата', 'Балл', 'Краткая мотивировка выставленного балла (при необходиости)', 'За/Против', 'Баллы по тесту']
+            headers1 = ['1', '2', '3', '4', '5']
+            data1 = self.combocalendar.currentText()
+            nonlocal dep
+            nonlocal counter_row
+            position = []
+            department = []
+            name = []
+            ball = []
+            za = []
+            motivation = []
+            ball_test = []
+            group = []
+            proc = []
+            count = -1
+            counter = 0
+            kolvo1 = 0
+            newdep1 = 0
+            sorted_df = df.sort_values(by=['Новый отдел', 'Группа', 'Категория'])
+            # sorted_df['Дата комиссии'] = pd.to_datetime(sorted_df['Дата комиссии']).dt.strftime('%d.%m.%Y')
+            if data1 == "Выбор даты":
+                pass
+            else:
+                sorted_df = sorted_df.loc[sorted_df['Дата комиссии'] == data1]
+            length = int(sorted_df.shape[0])
+            kolvo = sorted_df['Новый отдел'].value_counts()
+            kolvo1 = sorted_df['Претендующая Должность'].value_counts()
+            # Перебор данных из файла "конкурс.xlsx"
+            for index, col in sorted_df.iterrows():
+                group.append(col['Группа'])
+                position.append(col['Категория'])
+                department.append(col['Новый отдел'])
+                name.append(col['ФИО'])
+                ball.append(col[f'{self.FIO} Балл'])
+                za.append(col[f'{self.FIO} ЗаПротив'])
+                motivation.append(col[f'{self.FIO} Мотивировка'])
+                ball_test.append(col['Баллы за тест'])
+                proc.append(round(col['Процент правильных ответов'], 2))
+
+            # Если отдел не был добавлен, добавляем его в таблицу
+            for i in range(0, length):
+                count += 1
+                if department[count] not in departments:
+                    # Добавляем отдел в таблицу с объединением ячеек и выравниванием по центру
+                    if current_row != 1:
+                        # Пропускаем одну строку перед новым отделом
+                        current_row += 1
+                        new = []
+                        new1 = []
+                        ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=len(headers))
+                        ws.cell(row=current_row, column=1, value=department[count]).alignment = Alignment(horizontal='center')
+                        ws.cell(row=current_row, column=1).font = Font(bold = True, size = 12, name='Times New Roman', underline='single')
+                        ws.merge_cells(start_row=current_row+1, start_column=1, end_row=current_row+1, end_column=len(headers))
+                        ws.cell(row=current_row+1, column=1, value="(полное наименование отдела, на замещение которой проводится конкурс)").alignment = Alignment(horizontal='center')
+                        ws.cell(row=current_row+1, column=1).font = Font(size = 10, name="Times New Roman")
+                        # Добавляем отдел в список использованных отделов
+                        departments.append(department[count])
+                        # Пропускаем две строки после отдела
+                        newdep = kolvo.get(department[count], 0)
+                        newdep1 = kolvo1.get(position[count], 0)
+                        current_row += 3
+                        for j in range(0, newdep):
+                            if (group[counter] not in new) or (position[counter] not in new1) or ((position[counter] != position[counter - 1]) or (group[counter] != group[counter - 1])):
+                                new1.append(position[counter])
+                                new.append(group[counter])
+                                ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row,
+                                               end_column=len(headers))
+                                ws.cell(row=current_row, column=1,
+                                        value=f'Группа должностей: {group[counter]}. Категория: {position[counter]}').alignment = Alignment(
+                                    horizontal='left')
+                                ws.cell(row=current_row, column=1).font = Font(size=12, name="Times New Roman",
+                                                                               bold=True)
+                                current_row += 1
+                                for col, header in enumerate(headers, start=1):
+                                    cell = ws.cell(row=current_row, column=col, value=header)
+                                    cell.border = Border(top=Side(style='medium'), left=Side(style='medium'),
+                                                         right=Side(style='medium'), bottom=Side(style='medium'))
+                                    cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                                    cell.font = Font(name='Times New Roman', size=12)
+                                    counter_row.append(current_row)
+                                current_row += 1
+                                for col, header in enumerate(headers1, start=1):
+                                    cell = ws.cell(row=current_row, column=col, value=header)
+                                    cell.border = Border(top=Side(style='medium'), left=Side(style='medium'),
+                                                         right=Side(style='medium'), bottom=Side(style='medium'))
+                                    cell.alignment = Alignment(horizontal='center')
+                                    cell.font = Font(name='Times New Roman', size=12)
+                                current_row += 1
+                            if blank == 1:
+                                if str(ball_test[counter]) == 'nan':
+                                    data = [name[counter], ball[counter], motivation[counter], za[counter], ' ']
+                                elif str(ball_test[counter]) == '0':
+                                    motivation[counter] = 'Не допущен к собеседованию'
+                                    data = [name[counter], ball[counter], motivation[counter], za[counter], '0' + ' / ' + str(proc[counter]) + '%']
+                                elif str(ball_test[counter]) == 'Неявка':
+                                    motivation[counter] = 'Не допущен к собеседованию'
+                                    data = [name[counter], ball[counter], motivation[counter], za[counter], 'Неявка']
+                                else:
+                                    data = [name[counter], ball[counter], motivation[counter], za[counter], str(ball_test[counter]) + ' / ' + str(proc[counter]) + '%']
+                            else:
+                                data = [name[counter], ' ', ' ', ' ', ' ']
+                            for col, value in enumerate(data, start=1):
+                                cell = ws.cell(row=current_row, column=col, value=value)
+                                cell.border = Border(top=Side(style='medium'), left=Side(style='medium'),
+                                                     right=Side(style='medium'),
+                                                     bottom=Side(style='medium'))
+                                cell.alignment = Alignment(horizontal='center')
+                                cell.font = Font(name='Times New Roman', size=12)
+                            # Переходим на следующую строку после данных сотрудника
+                            current_row += 1
+                            counter += 1
+
+
+            new = []
+            new = position
+            dep = list(set(new))
+
+            for col in range(1, len(headers) + 1):
+                ws.cell(row=current_row - 1, column=col).border = Border(top=Side(style='medium'),
+                                                                         left=Side(style='medium'),
+                                                                         right=Side(style='medium'),
+                                                                         bottom=Side(style='medium'))
+                ws.cell(row=current_row, column=col).border = Border(top=Side(style='medium'),
+                                                                     left=Side(style='medium'),
+                                                                     right=Side(style='medium'),
+                                                                     bottom=Side(style='medium'))
+                ws.cell(row=6, column=col).border = Border(bottom=Side(style='thin'))
+
+                ws.cell(row=current_row+2, column=1, value=self.FIO)
+                ws.cell(row=current_row+2, column=1).border = Border(bottom=Side(style='medium'))
+                ws.cell(row=current_row+2, column=1).font = Font(name='Times New Roman', size=13)
+                ws.cell(row=current_row + 3, column=1, value="(фамилия, имя, отчество члена конкурсной комиссии)")
+                ws.cell(row=current_row + 3, column=1).font = Font(name='Times New Roman', size=9)
+
+                ws.cell(row=current_row + 2, column=3).border = Border(bottom=Side(style='medium'))
+                ws.cell(row=current_row + 3, column=3).alignment = Alignment(horizontal='center')
+                ws.cell(row=current_row + 3, column=3, value="(подпись)")
+                ws.cell(row=current_row + 3, column=3).font = Font(name='Times New Roman', size=9)
+
+            # Удаление лишней строки в конце файла
+            ws.delete_rows(current_row)
+
+
+        try:
+            # Путь к папке "addition"
+            folder_path = os.path.join(os.getcwd(), 'addition')
+            # Создаем новую папку в "addition"
+            new_folder_path = os.path.join(folder_path, 'Конкурсные бланки')
+            os.makedirs(new_folder_path, exist_ok=True)
+            date = self.combocalendar.currentText()
+
+            if date == "Выбор даты":
+                date = datetime.now()
+                format = date.strftime('%d.%m.%Y')
+                tt = format.lstrip('0')
+            else:
+                tt = date.lstrip('0')
+            y = tt.split('.')
+            date = (y[0] + '.' + y[1] + '.' + y[2])
+            parts = self.FIO.split()
+            formatFio = f"{parts[0]}.{parts[1][0]}.{parts[2][0]}"
+            # Полные пути к файлам Excel
+            workbook_path1 = os.path.join(new_folder_path, f"{formatFio}_{date}_Пустой.xlsx")
+            workbook_path2 = os.path.join(new_folder_path, f"{formatFio}_{date}_Заполненный.xlsx")
+
+            # Открытие шаблона для копирования шапки
+            wb_template = load_workbook(os.path.join(folder_path, 'Шаблон.xlsx'))
+            sheet_template = wb_template.active
+
+            # Создание новых файлов бланков
+            for path in [workbook_path1, workbook_path2]:
+                wb = Workbook()
+                ws = wb.active
+                wb.active.title = "Конкурсный бюллетень"
+
+
+                # Копирование шапки из шаблона
+                max_row = min(13, sheet_template.max_row)
+                max_column = sheet_template.max_column
+
+                for i in range(1, max_row + 1):
+                    for j in range(1, max_column + 1):
+                        cell_template = sheet_template.cell(row=i, column=j)
+                        cell = ws.cell(row=i, column=j, value=cell_template.value)
+
+                # Задание формата даты
+                dict = {'01': 'января', '02': 'февраля', '03': 'марта', '04': 'апреля', '05': 'мая',
+                        '06': 'июня', '07': 'июля', '08': 'августа', '09': 'сентября', '10': 'октября', '11': 'ноябрь',
+                        '12': 'декабрь', }
+                date = (y[0] + ' ' + dict[y[1]] + ' ' + y[2])
+                ws['A3'] = date
+
+
+
+                #Ширина столбцов
+                ws.column_dimensions['A'].width = 48
+                ws.column_dimensions['B'].width = 10
+                ws.column_dimensions['C'].width = 34
+                ws.column_dimensions['D'].width = 24
+                ws.column_dimensions['E'].width = 18
+                ws.row_dimensions[8].height = 15
+                ws.row_dimensions[9].height = 31
+                for i in counter_row:
+                    ws.row_dimensions[i].height = 48
+                    for col in ['A', 'B', 'C', 'D', 'E']:
+                        cell = ws[f'{col}{i}']
+                        cell.alignment = Alignment(horizontal='center', vertical='center')
+
+                ws.merge_cells("A1:E1")
+                ws.merge_cells("A3:E3")
+                ws.merge_cells("A4:E4")
+                ws.merge_cells("A6:E6")
+                ws.merge_cells("A8:E9")
+                ws.merge_cells("A11:E11")
+                ws.merge_cells("A12:E12")
+
+                # Копирование стилей из шаблона
+                for row in ws.iter_rows(min_row=1, max_row=max_row, min_col=1, max_col=max_column):
+                    for cell in row:
+                        source = sheet_template[cell.coordinate]
+                        cell.font = source.font.copy()
+                        cell.alignment = source.alignment.copy()
+
+                # Вставляем таблицу из Excel
+                if path == workbook_path1:
+                    generate_table_from_excel(ws, 0)
+                if path == workbook_path2:
+                    generate_table_from_excel(ws, 1)
+
+                for i in range(0, len(dep)):
+                    wb.create_sheet(f"{dep[i]}")
+
+                wb.save(path)
+
+            QMessageBox.information(self, 'Уведомление', 'Бланки успешно созданы')
+        except Exception as e:
+            QMessageBox.critical(self, 'Ошибка', f'Не удалось создать бланки: {str(e)}')
+
+    def search_table(self, text):
+        currentTable = self.table_widget2
+        currentTable.clearSelection()
+        try:
+            search_text = text.lower()
+            for i in range(currentTable.rowCount()):
+                matches = False
+                for j in range(currentTable.columnCount()):
+                    item = currentTable.item(i, j)
+                    if item is not None and text.lower() in item.text().lower():
+                        matches = True
+                        break
+                currentTable.setRowHidden(i, not matches)
+        except Exception as e:
+            print('Ошибка при поиске:', e)
+
+    def calchanged(self, index):
+        data1 = self.combocalendar.currentText()
+        if data1 == 'Выбор даты':
+            self.table_widget2.blockSignals(True)
+            for i in range(self.table_widget2.rowCount()):
+                self.table_widget2.showRow(i)
+            self.table_widget2.blockSignals(False)
+        else:
+            self.df = pd.read_excel(file2)
+            rows_to_hide = []
+            self.table_widget2.blockSignals(True)
+            for i in range(self.table_widget2.rowCount()):
+                self.table_widget2.showRow(i)
+            # self.df['Дата комиссии'] = pd.to_datetime(self.df['Дата комиссии']).dt.strftime('%d.%m.%Y')
+            for row_index, row_data in self.df.iterrows():
+                if row_data['Дата комиссии'] != data1:
+                    rows_to_hide.append(row_index)
+            current_row = 0
+            for row_index, row_data in self.df.iterrows():
+                if row_index in rows_to_hide:
+                    self.table_widget2.hideRow(current_row)
+                current_row += 1
+            self.table_widget2.blockSignals(False)
+
+
+
+
+
+
+stylesheet976 = """
+    LoginApp {
+        background-image: url(картинки/fon3.png);
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+"""
+
+if __name__ == '__main__':
+    log_print('Приложение запущено')
+    print(sys.argv)
+
+    if '-t' in sys.argv:
+        print('Test open')
+        app = QApplication(sys.argv)
+        w = Main_window()
+        w.show()
+        sys.exit(app.exec_())
+    else:
+        app = QApplication(sys.argv)
+        app.setStyleSheet(stylesheet976)
+        inf = Information_HR_sheet()
+        inf.show()
+        sys.exit(app.exec_())
+    log_print('Приложение остановлено')
+
+
+# FileNotFoundError: [Errno 2] No such file or directory: 'X://Тестирование/_0000 тест приложения/Кадры/Конкурс/30.04.2024/Комиссия/конкурс.xlsx'
+#                                                          X:\Тестирование\_0000 тест приложения\Кадры\Конкурс\30.04.2024
